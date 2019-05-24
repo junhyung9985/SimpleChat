@@ -26,9 +26,11 @@ class ChatThread extends Thread{
 	private BufferedReader br;
 	private HashMap hm;
 	private boolean initFlag = false;
+	private String a,b,c,d,e;
 	public ChatThread(Socket sock, HashMap hm){
 		this.sock = sock;
 		this.hm = hm;
+		a = "stupid"; b = "dumb"; c = "I'm inevitable"; d = "I'm Iron man"; e = "Voldemort";
 		try{
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(sock.getOutputStream()));
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
@@ -37,8 +39,8 @@ class ChatThread extends Thread{
 			System.out.println("[Server] User (" + id + ") entered.");
 			synchronized(hm){
 				hm.put(this.id, pw);
-			}
-			initFlag = true;
+			} // hm에 넣을때 줄을 세우는 역할을 synchronized가 함. -> 여러명이 한꺼번에 들어올려고 할때를 막음.
+			initFlag = true; // 원래 의도가 있었는데... 만들다가 말았음.
 		}catch(Exception ex){
 			System.out.println(ex);
 		}
@@ -49,11 +51,16 @@ class ChatThread extends Thread{
 			while((line = br.readLine()) != null){
 				if(line.equals("/quit"))
 					break;
-				if(line.indexOf("/to ") == 0){
-					sendmsg(line);
-				}else
-					broadcast(id + " : " + line);
-			}
+				if (line.contains(a) || line.contains(b) || line.contains(c) || line.contains(d) || line.contains(e)) {
+					warning(); // 우선순위를 제일 먼저 둠.
+				} else if(line.indexOf("/to ") == 0){
+						sendmsg(line);
+					}else if (line.equals("/userlist")) {
+						send_userlist();
+					} else {
+						broadcast(id + " : " + line);
+					}
+				}
 		}catch(Exception ex){
 			System.out.println(ex);
 		}finally{
@@ -67,13 +74,23 @@ class ChatThread extends Thread{
 			}catch(Exception ex){}
 		}
 	} // run
+	
+	public void warning() {
+		PrintWriter pw = (PrintWriter)hm.get(id);
+		pw.println("WARNING!: Usage of Inappopriate word!");
+		pw.flush();
+		pw.println("This will be reported to the admin!");
+		pw.flush();
+		System.out.println("REPORT: "+id+" USAGE OF INAPPOPRIATE WORD!"); // report to admin
+	} // warning to the user
+	
 	public void sendmsg(String msg){
 		int start = msg.indexOf(" ") +1;
 		int end = msg.indexOf(" ", start);
 		if(end != -1){
 			String to = msg.substring(start, end);
 			String msg2 = msg.substring(end+1);
-			Object obj = hm.get(to);
+			Object obj = hm.get(to); // synchronized 해야하는데 까먹은듯.
 			if(obj != null){
 				PrintWriter pw = (PrintWriter)obj;
 				pw.println(id + " whisphered. : " + msg2);
@@ -81,14 +98,38 @@ class ChatThread extends Thread{
 			} // if
 		}
 	} // sendmsg
+	
+	public void send_userlist() {
+		synchronized(hm){
+			Set key = hm.keySet(); // key들 저장.
+			int count = 0;
+			Iterator iter = key.iterator(); // Iterator 생성
+			while(iter.hasNext()){
+				PrintWriter pw = (PrintWriter)hm.get(id);
+				pw.println(); pw.flush();
+				while(iter.hasNext()) {
+					pw.println(iter.next());
+					pw.flush();
+					count++; // counting user total
+				}
+				pw.println(); pw.flush();
+				pw.println(count+ " users in total!");
+				pw.flush();
+			}
+		}
+	} // userlist
+	
 	public void broadcast(String msg){
+		boolean pass = false;
 		synchronized(hm){
 			Collection collection = hm.values();
 			Iterator iter = collection.iterator();
 			while(iter.hasNext()){
 				PrintWriter pw = (PrintWriter)iter.next();
-				pw.println(msg);
-				pw.flush();
+				if (pw != hm.get(id)) {
+					pw.println(msg);
+					pw.flush();
+				} // 자신 빼고 나머지들에게만 전달!
 			}
 		}
 	} // broadcast
