@@ -1,6 +1,8 @@
 import java.net.*;
 import java.io.*;
 
+//https://github.com/junhyung9985/SimpleChat
+
 public class ChatClient {
 
 	public static void main(String[] args) {
